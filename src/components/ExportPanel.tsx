@@ -7,7 +7,7 @@ export default function ExportPanel() {
     try {
       console.log("Sending payload to backend:", components);
 
-      const response = await fetch("http://localhost:5079/api/AssetComponents/SaveComponents", {
+      const response = await fetch("http://localhost:8080/api/AssetComponents/SaveComponents", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(components),
