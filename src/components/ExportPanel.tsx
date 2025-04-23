@@ -2,12 +2,13 @@ import { useCanvas } from "../context/CanvasContext";
 
 export default function ExportPanel() {
   const { components } = useCanvas();
+  console.log("Components in ExportPanel:", components); // Debugging log
 
   const saveToBackend = async () => {
     try {
       console.log("Sending payload to backend:", components);
 
-      const response = await fetch("http://localhost:5079/api/AssetComponents/SaveComponents", {
+      const response = await fetch("http://localhost:8080/api/AssetComponents/SaveComponents", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(components),
@@ -24,6 +25,7 @@ export default function ExportPanel() {
   };
 
   const exportToJson = () => {
+    console.log("Components to export:", components);
     const json = JSON.stringify(components, null, 2);
     const blob = new Blob([json], { type: "application/json" });
     const link = document.createElement("a");
