@@ -2,6 +2,7 @@ import { useCanvas } from "../context/CanvasContext";
 
 export default function ExportPanel() {
   const { components } = useCanvas();
+  console.log("Components in ExportPanel:", components); // Debugging log
 
   const saveToBackend = async () => {
     try {
@@ -24,6 +25,7 @@ export default function ExportPanel() {
   };
 
   const exportToJson = () => {
+    console.log("Components to export:", components);
     const json = JSON.stringify(components, null, 2);
     const blob = new Blob([json], { type: "application/json" });
     const link = document.createElement("a");

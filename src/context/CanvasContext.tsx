@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, ReactNode } from "react";
+import { createContext, useContext, useState, ReactNode, useEffect } from "react";
 import { AssetComponent } from "../types/AssetComponent";
 
 export type SystemType = "Access" | "Fire" | "DVM" | "HVAC" | "Security";
@@ -24,9 +24,11 @@ const CanvasContext = createContext<ContextType | null>(null);
 export const CanvasProvider = ({ children }: { children: ReactNode }) => {
   const [system, setSystem] = useState<SystemType>("Access");
   const [components, setComponents] = useState<AssetComponent[]>([]);
-
+  console.log(components,"my component")
   const getComponentTypes = () => SYSTEM_COMPONENTS[system] || [];
-
+  useEffect(() => {
+    console.log("Current components in context:", components); // Debugging log
+  }, [components]);
   return (
     <CanvasContext.Provider value={{ system, setSystem, components, setComponents, getComponentTypes }}>
       {children}

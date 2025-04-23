@@ -1,16 +1,35 @@
-import { useRef, useState } from "react";
-import { useCanvas } from "../context/CanvasContext";
+import { useEffect, useRef, useState } from "react";
+import { useDispatch, useSelector } from "react-redux";
 import { AssetComponent } from "../types/AssetComponent";
 import MetadataModal from "./MetadataModal";
-
+import { setCurrentFloor } from "../slices/currentFloorSlice";
+import { Floor } from "../types/Floor";
+import { Camera } from "../types/Camera";
+import { Controller } from "../types/Controller";
+import { Reader } from "../types/Reader";
+import { Zone } from "../types/Zone";
+import { useCanvas } from "../context/CanvasContext";
 export default function CanvasArea() {
   const [imageURL, setImageURL] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const { components, setComponents } = useCanvas();
-
+  const dispatch = useDispatch();
   const [showModal, setShowModal] = useState(false);
-  const [lastIndex, setLastIndex] = useState<number | null>(null);
+  const [currentComponent, setCurrentComponent] = useState<Reader|Controller|Camera|Zone|null>(null);
+  const GRID_SIZE = 20; // Size of the grid cells
+  const snapToGrid = (value: number) => {
+    return Math.round(value / GRID_SIZE) * GRID_SIZE;
+  };
+  
+  const { components, setComponents } = useCanvas();
+  const selectedItem = useSelector((state: any) => state.selectedItem); 
+  const currentFloor = useSelector((state: any) => state.currentFloor); 
+
+  useEffect(() => {
+    if (selectedItem.item) {
+      setCurrentComponent(selectedItem.item);
+    }
+}, [selectedItem]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -19,40 +38,58 @@ export default function CanvasArea() {
       reader.onload = () => setImageURL(reader.result as string);
       reader.readAsDataURL(file);
     }
+    const newFloor: Floor = {
+      controllers: [],
+      zones: [],
+      cameras: [],
+      fireSprinklers: [],
+      readers: [],
+      zoomState: 0,
+      name: file?.name || "New Floor",
+      systemType: "",
+      componentType: "",
+      x: 0,
+      y: 0,
+      metadata: "",
+    };
+    dispatch(setCurrentFloor(newFloor));
   };
 
   const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
-    const componentType = e.dataTransfer.getData("componentType");
-    const systemType = e.dataTransfer.getData("systemType");
-
+    
     const rect = containerRef.current?.getBoundingClientRect();
-    const x = e.clientX - (rect?.left || 0);
-    const y = e.clientY - (rect?.top || 0);
-
-    const newComponent: AssetComponent = {
-      systemType,
-      componentType,
-      x,
-      y,
-      metadata: "{}",
-    };
-
-    const updated = [...components, newComponent];
-    setComponents(updated);
-    setLastIndex(updated.length - 1);
+    let x = e.clientX - (rect?.left || 0); // Calculate x-coordinate
+    let y = e.clientY - (rect?.top || 0); // Calculate y-coordinate
+    x=snapToGrid(x);
+    y=snapToGrid(y);
+    setCurrentComponent({... selectedItem.item, x, y}); // Set the current component with its position
     setShowModal(true);
   };
 
-  const handleMetadataSave = (metadata: Record<string, string>) => {
-    if (lastIndex === null) return;
+  const addComponentToCurrentFloor = (component: Reader|Controller|Camera|Zone) => {
+    switch (component.componentType) {
+      case "Controller":
+        dispatch(setCurrentFloor({ ...currentFloor, controllers: [...(currentFloor?.controllers || []), component] }));
+        break;
+      case "Camera":
+        dispatch(setCurrentFloor({ ...currentFloor, cameras: [...(currentFloor?.cameras || []), component] }));
+        break;
+      case "Zone":
+        dispatch(setCurrentFloor({ ...currentFloor, zones: [...(currentFloor?.zones || []), component] }));
+        break;
+      case "Reader":
+        dispatch(setCurrentFloor({ ...currentFloor, readers: [...(currentFloor?.readers || []), component] }));
+        break;
+    }
+  }
 
-    const updated = [...components];
-    updated[lastIndex] = {
-      ...updated[lastIndex],
-      metadata: JSON.stringify(metadata),
-    };
-    setComponents(updated);
+  const handleMetadataSave = () => {
+    console.log("Saving metadata:", currentComponent);
+    if (currentComponent === null) return;
+    
+    addComponentToCurrentFloor({ ...currentComponent }); // Add the component to the current floor
+    setComponents([...components, { ...currentComponent }]);  
   };
 
   return (
@@ -78,6 +115,13 @@ export default function CanvasArea() {
         onDrop={handleDrop}
         onDragOver={(e) => e.preventDefault()}
         className="relative w-full h-[80vh] border-2 border-dashed border-[#4CAF50]"
+        style={{
+          backgroundImage: `
+            linear-gradient(to right, #2e2e2e 1px, transparent 1px),
+            linear-gradient(to bottom, #2e2e2e 1px, transparent 1px)
+          `,
+          backgroundSize: `${GRID_SIZE}px ${GRID_SIZE}px`,
+        }}
       >
         {imageURL && (
           <img
@@ -87,7 +131,7 @@ export default function CanvasArea() {
           />
         )}
 
-        {components.map((comp, index) => (
+        {components.map((comp: AssetComponent, index: number) => (
           <div
             key={index}
             className="absolute px-2 py-1 bg-[#4CAF50] text-white text-xs rounded shadow"
@@ -100,11 +144,14 @@ export default function CanvasArea() {
       </div>
 
       {/* Metadata Modal */}
-      <MetadataModal
-        visible={showModal}
-        onClose={() => setShowModal(false)}
-        onSave={handleMetadataSave}
-      />
+      {currentComponent !== null && (
+        <MetadataModal
+          visible={showModal}
+          onClose={() => setShowModal(false)}
+          onSave={handleMetadataSave}
+          Component={currentComponent} // Pass the selected component
+        />
+      )}
     </div>
   );
 }
